@@ -1,0 +1,11 @@
+127.0.0.1 - - [25/Dec/2025 21:43:26] "POST /api/auth/login HTTP/1.1" 200 -
+127.0.0.1 - - [25/Dec/2025 21:48:23] "POST /auth/login HTTP/1.1" 404 -
+127.0.0.1 - - [25/Dec/2025 21:48:39] "POST /auth/login HTTP/1.1" 404 -
+127.0.0.1 - - [25/Dec/2025 21:48:40] "POST /auth/login HTTP/1.1" 404 -
+127.0.0.1 - - [25/Dec/2025 21:48:41] "POST /auth/login HTTP/1.1" 404 -
+127.0.0.1 - - [25/Dec/2025 21:48:42] "POST /auth/login HTTP/1.1" 404 -
+127.0.0.1 - - [25/Dec/2025 21:48:59] "POST /auth/register HTTP/1.1" 404 -
+127.0.0.1 - - [25/Dec/2025 21:49:41] "POST /auth/login HTTP/1.1" 404 -
+127.0.0.1 - - [25/Dec/2025 21:49:58] "POST /auth/login HTTP/1.1" 404 -
+127.0.0.1 - - [25/Dec/2025 21:50:43] "POST /api/auth/login HTTP/1.1" 200 -
+127.0.0.1 - - [25/Dec/2025 21:52:18] "POST /api/auth/login HTTP/1.1" 200 -

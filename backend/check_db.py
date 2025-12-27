@@ -1,0 +1,15 @@
+import sqlite3
+
+conn = sqlite3.connect('fitness.db')
+cursor = conn.cursor()
+cursor.execute('SELECT name FROM sqlite_master WHERE type="table"')
+print('数据库表:', [t[0] for t in cursor.fetchall()])
+cursor.execute('SELECT COUNT(*) FROM user')
+print('用户数量:', cursor.fetchone()[0])
+cursor.execute('SELECT COUNT(*) FROM ai_plan')
+print('AI方案数量:', cursor.fetchone()[0])
+cursor.execute('SELECT COUNT(*) FROM diet_record')
+print('饮食记录:', cursor.fetchone()[0])
+cursor.execute('SELECT COUNT(*) FROM exercise_log')
+print('运动记录:', cursor.fetchone()[0])
+conn.close()

@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CSRF调试测试</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; }
+        .result { margin: 10px 0; padding: 10px; background: #f5f5f5; }
+        .error { background: #ffebee; color: #c62828; }
+        .success { background: #e8f5e8; color: #2e7d32; }
+    </style>
+</head>
+<body>
+    <h1>CSRF调试测试页面</h1>
+    
+    <div class="test-section">
+        <h3>测试1: 直接API调用</h3>
+        <button onclick="testDirectAPI()">测试直接调用后端API</button>
+        <div id="direct-result" class="result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>测试2: 通过前端代理调用</h3>
+        <button onclick="testProxyAPI()">测试通过前端代理调用</button>
+        <div id="proxy-result" class="result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>测试3: 模拟表单提交</h3>
+        <button onclick="testFormSubmit()">模拟表单提交</button>
+        <div id="form-result" class="result"></div>
+    </div>
+
+    <script>
+        async function testDirectAPI() {
+            const resultDiv = document.getElementById('direct-result');
+            try {
+                const response = await fetch('http://localhost:5000/api/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        username: 'admin',
+                        password: 'admin123'
+                    })
+                });
+                
+                const data = await response.json();
+                resultDiv.className = `result ${response.ok ? 'success' : 'error'}`;
+                resultDiv.innerHTML = `
+                    <strong>状态:</strong> ${response.status}<br>
+                    <strong>响应:</strong> <pre>${JSON.stringify(data, null, 2)}</pre>
+                `;
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `<strong>错误:</strong> ${error.message}`;
+            }
+        }
+
+        async function testProxyAPI() {
+            const resultDiv = document.getElementById('proxy-result');
+            try {
+                const response = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        username: 'admin',
+                        password: 'admin123'
+                    })
+                });
+                
+                const data = await response.json();
+                resultDiv.className = `result ${response.ok ? 'success' : 'error'}`;
+                resultDiv.innerHTML = `
+                    <strong>状态:</strong> ${response.status}<br>
+                    <strong>响应:</strong> <pre>${JSON.stringify(data, null, 2)}</pre>
+                `;
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `<strong>错误:</strong> ${error.message}`;
+            }
+        }
+
+        async function testFormSubmit() {
+            const resultDiv = document.getElementById('form-result');
+            try {
+                // 创建FormData对象模拟表单提交
+                const formData = new FormData();
+                formData.append('username', 'admin');
+                formData.append('password', 'admin123');
+                
+                const response = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                resultDiv.className = `result ${response.ok ? 'success' : 'error'}`;
+                resultDiv.innerHTML = `
+                    <strong>状态:</strong> ${response.status}<br>
+                    <strong>响应:</strong> <pre>${JSON.stringify(data, null, 2)}</pre>
+                `;
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `<strong>错误:</strong> ${error.message}`;
+            }
+        }
+
+        // 页面加载时显示当前环境信息
+        window.onload = function() {
+            console.log('当前域名:', window.location.origin);
+            console.log('用户代理:', navigator.userAgent);
+            console.log('文档cookie:', document.cookie);
+        };
+    </script>
+</body>
+</html>
