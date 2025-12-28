@@ -97,6 +97,7 @@
 import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { getUploadBaseUrl } from '@/utils/api'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -105,11 +106,11 @@ const authStore = useAuthStore()
 const isAuthenticated = computed(() => authStore.isAuthenticated)
 const user = computed(() => authStore.user)
 
-// 获取头像URL (使用代理)
+// 获取头像URL (支持外网访问)
 const getAvatarUrl = (avatar: string) => {
   if (!avatar) return ''
   if (avatar.startsWith('http')) return avatar
-  return avatar  // 使用代理，直接返回路径
+  return getUploadBaseUrl() + avatar
 }
 
 // 处理登出

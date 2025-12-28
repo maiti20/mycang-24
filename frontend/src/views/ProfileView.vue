@@ -225,7 +225,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
-import { statsApi, authApi } from '@/utils/api'
+import { statsApi, authApi, getUploadBaseUrl } from '@/utils/api'
 
 const authStore = useAuthStore()
 const user = computed(() => authStore.user)
@@ -303,7 +303,7 @@ function formatNumber(n: number) { return n.toLocaleString('zh-CN') }
 function getAvatarUrl(avatar: string) {
   if (!avatar) return ''
   if (avatar.startsWith('http')) return avatar
-  return avatar  // 使用代理，直接返回路径
+  return getUploadBaseUrl() + avatar  // 支持外网访问
 }
 
 function triggerAvatarUpload() {

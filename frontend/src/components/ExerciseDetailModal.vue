@@ -216,7 +216,7 @@
           <button 
             type="button" 
             class="btn btn-success"
-            @click="$emit('add-record', exercise)"
+            @click="$emit('addRecord', exercise)"
           >
             <i class="bi bi-plus-circle me-2"></i>
             添加运动记录
@@ -247,8 +247,8 @@ interface Props {
   exercise?: Exercise | null
 }
 
-defineProps<Props>()
-const emit = defineEmits<{
+const props = defineProps<Props>()
+defineEmits<{
   close: []
   addRecord: [exercise: Exercise]
 }>()

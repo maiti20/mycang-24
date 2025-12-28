@@ -125,24 +125,24 @@
       </div>
 
       <!-- 饮食记录列表 -->
-      <div class="row">
+      <div class="row mb-4">
         <div class="col-12">
           <div class="card border-0 shadow-sm">
             <div class="card-header bg-white d-flex justify-content-between align-items-center">
               <h5 class="card-title mb-0">
-                <i class="bi bi-list-ul text-success me-2"></i>
-                饮食记录
+                <i class="bi bi-calendar-day text-success me-2"></i>
+                今日饮食记录
               </h5>
               <div class="btn-group" role="group">
-                <button 
-                  class="btn btn-outline-success btn-sm" 
+                <button
+                  class="btn btn-outline-success btn-sm"
                   :class="{ active: viewMode === 'list' }"
                   @click="viewMode = 'list'"
                 >
                   <i class="bi bi-list"></i> 列表
                 </button>
-                <button 
-                  class="btn btn-outline-success btn-sm" 
+                <button
+                  class="btn btn-outline-success btn-sm"
                   :class="{ active: viewMode === 'grid' }"
                   @click="viewMode = 'grid'"
                 >
@@ -166,18 +166,18 @@
               </div>
 
               <!-- 空状态 -->
-              <div v-else-if="filteredRecords.length === 0" class="text-center py-5">
+              <div v-else-if="todayRecords.length === 0" class="text-center py-5">
                 <i class="bi bi-inbox fs-1 text-muted mb-3"></i>
-                <h5 class="text-muted">暂无饮食记录</h5>
+                <h5 class="text-muted">今日暂无饮食记录</h5>
                 <p class="text-muted">点击上方"添加记录"按钮开始记录您的第一餐</p>
               </div>
 
-              <!-- 记录列表 -->
+              <!-- 今日记录列表 -->
               <div v-else>
                 <!-- 列表视图 -->
                 <div v-if="viewMode === 'list'" class="record-list">
-                  <div 
-                    v-for="record in filteredRecords" 
+                  <div
+                    v-for="record in todayRecords"
                     :key="record.id"
                     class="record-item border-bottom pb-3 mb-3"
                   >
@@ -207,7 +207,7 @@
                         </div>
                       </div>
                       <div class="col-md-4 text-end">
-                        <small class="text-muted d-block mb-2">{{ formatDateTime(record.record_date) }}</small>
+                        <small class="text-muted d-block mb-2">{{ formatTime(record.record_date) }}</small>
                         <div class="btn-group btn-group-sm">
                           <button class="btn btn-outline-primary" @click="editRecord(record)">
                             <i class="bi bi-pencil"></i>
@@ -223,8 +223,8 @@
 
                 <!-- 网格视图 -->
                 <div v-else class="row">
-                  <div 
-                    v-for="record in filteredRecords" 
+                  <div
+                    v-for="record in todayRecords"
                     :key="record.id"
                     class="col-md-6 col-lg-4 mb-3"
                   >
@@ -272,26 +272,111 @@
                     </div>
                   </div>
                 </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
 
-                <!-- 分页 -->
-                <nav v-if="pagination.pages > 1" aria-label="记录分页">
-                  <ul class="pagination justify-content-center">
-                    <li class="page-item" :class="{ disabled: pagination.page === 1 }">
-                      <button class="page-link" @click="changePage(pagination.page - 1)">上一页</button>
-                    </li>
-                    <li 
-                      v-for="page in pagination.pages" 
-                      :key="page"
-                      class="page-item" 
-                      :class="{ active: pagination.page === page }"
+      <!-- 历史饮食记录汇总 -->
+      <div v-if="historyByDate.length > 0" class="row">
+        <div class="col-12">
+          <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white">
+              <h5 class="card-title mb-0">
+                <i class="bi bi-clock-history text-secondary me-2"></i>
+                历史饮食记录
+              </h5>
+            </div>
+            <div class="card-body p-0">
+              <div class="accordion" id="historyAccordion">
+                <div
+                  v-for="(dayData, index) in historyByDate"
+                  :key="dayData.date"
+                  class="accordion-item border-0 border-bottom"
+                >
+                  <h2 class="accordion-header">
+                    <button
+                      class="accordion-button collapsed"
+                      type="button"
+                      @click="toggleHistoryDay(dayData.date)"
                     >
-                      <button class="page-link" @click="changePage(page)">{{ page }}</button>
-                    </li>
-                    <li class="page-item" :class="{ disabled: pagination.page === pagination.pages }">
-                      <button class="page-link" @click="changePage(pagination.page + 1)">下一页</button>
-                    </li>
-                  </ul>
-                </nav>
+                      <div class="d-flex justify-content-between align-items-center w-100 me-3">
+                        <div>
+                          <i class="bi bi-calendar3 me-2 text-muted"></i>
+                          <strong>{{ formatHistoryDate(dayData.date) }}</strong>
+                          <span class="badge bg-secondary ms-2">{{ dayData.records.length }} 条记录</span>
+                        </div>
+                        <div class="text-end">
+                          <span class="badge bg-warning fs-6">
+                            <i class="bi bi-fire me-1"></i>{{ dayData.totalCalories.toFixed(0) }} kcal
+                          </span>
+                        </div>
+                      </div>
+                    </button>
+                  </h2>
+                  <div
+                    class="accordion-collapse collapse"
+                    :class="{ show: expandedDays.includes(dayData.date) }"
+                  >
+                    <div class="accordion-body">
+                      <!-- 当天营养汇总 -->
+                      <div class="row mb-3 text-center">
+                        <div class="col-3">
+                          <div class="p-2 bg-light rounded">
+                            <small class="text-warning d-block fw-bold">{{ dayData.totalCalories.toFixed(0) }}</small>
+                            <small class="text-muted">卡路里</small>
+                          </div>
+                        </div>
+                        <div class="col-3">
+                          <div class="p-2 bg-light rounded">
+                            <small class="text-info d-block fw-bold">{{ dayData.totalProtein.toFixed(1) }}g</small>
+                            <small class="text-muted">蛋白质</small>
+                          </div>
+                        </div>
+                        <div class="col-3">
+                          <div class="p-2 bg-light rounded">
+                            <small class="text-primary d-block fw-bold">{{ dayData.totalCarbs.toFixed(1) }}g</small>
+                            <small class="text-muted">碳水</small>
+                          </div>
+                        </div>
+                        <div class="col-3">
+                          <div class="p-2 bg-light rounded">
+                            <small class="text-secondary d-block fw-bold">{{ dayData.totalFat.toFixed(1) }}g</small>
+                            <small class="text-muted">脂肪</small>
+                          </div>
+                        </div>
+                      </div>
+                      <!-- 当天详细记录 -->
+                      <div class="table-responsive">
+                        <table class="table table-sm table-hover mb-0">
+                          <thead class="table-light">
+                            <tr>
+                              <th>餐次</th>
+                              <th>食物</th>
+                              <th>数量</th>
+                              <th class="text-end">卡路里</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            <tr v-for="record in dayData.records" :key="record.id">
+                              <td>
+                                <span class="badge" :class="getMealBadgeClass(record.meal_type)">
+                                  {{ record.meal_type }}
+                                </span>
+                              </td>
+                              <td>{{ record.food.name }}</td>
+                              <td>{{ record.quantity }} {{ record.food.unit }}</td>
+                              <td class="text-end">
+                                <span class="text-warning">{{ record.nutrition.calories.toFixed(0) }} kcal</span>
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -468,7 +553,7 @@ const viewMode = ref<'list' | 'grid'>('list')
 // 分页
 const pagination = ref({
   page: 1,
-  limit: 20,
+  limit: 100, // 增加limit以获取更多历史记录
   total: 0,
   pages: 0
 })
@@ -485,6 +570,9 @@ const todayNutrition = ref({
 const showAddModal = ref(false)
 const editingRecord = ref(null)
 
+// 历史记录展开状态
+const expandedDays = ref<string[]>([])
+
 // 表单数据
 const formData = ref({
   food_id: null,
@@ -498,6 +586,49 @@ const foodSearchQuery = ref('')
 const selectedFood = ref(null)
 
 // 计算属性
+const todayStr = computed(() => new Date().toDateString())
+
+// 今日记录
+const todayRecords = computed(() => {
+  return records.value.filter(record =>
+    new Date(record.record_date).toDateString() === todayStr.value
+  )
+})
+
+// 历史记录按日期分组
+const historyByDate = computed(() => {
+  const pastRecords = records.value.filter(record =>
+    new Date(record.record_date).toDateString() !== todayStr.value
+  )
+
+  // 按日期分组
+  const grouped: { [key: string]: any[] } = {}
+  pastRecords.forEach(record => {
+    const dateKey = new Date(record.record_date).toISOString().split('T')[0]
+    if (!grouped[dateKey]) {
+      grouped[dateKey] = []
+    }
+    grouped[dateKey].push(record)
+  })
+
+  // 转换为数组并计算汇总
+  const result = Object.keys(grouped)
+    .sort((a, b) => new Date(b).getTime() - new Date(a).getTime()) // 按日期倒序
+    .map(date => {
+      const dayRecords = grouped[date]
+      return {
+        date,
+        records: dayRecords,
+        totalCalories: dayRecords.reduce((sum, r) => sum + r.nutrition.calories, 0),
+        totalProtein: dayRecords.reduce((sum, r) => sum + r.nutrition.protein, 0),
+        totalCarbs: dayRecords.reduce((sum, r) => sum + r.nutrition.carbs, 0),
+        totalFat: dayRecords.reduce((sum, r) => sum + r.nutrition.fat, 0)
+      }
+    })
+
+  return result
+})
+
 const filteredRecords = computed(() => {
   let filtered = records.value
 
@@ -734,6 +865,37 @@ const formatTime = (dateTimeStr: string) => {
   })
 }
 
+const formatHistoryDate = (dateStr: string) => {
+  const date = new Date(dateStr)
+  const today = new Date()
+  const yesterday = new Date(today)
+  yesterday.setDate(yesterday.getDate() - 1)
+
+  if (date.toDateString() === yesterday.toDateString()) {
+    return '昨天'
+  }
+
+  const diffDays = Math.floor((today.getTime() - date.getTime()) / (1000 * 60 * 60 * 24))
+  if (diffDays < 7) {
+    const weekdays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
+    return weekdays[date.getDay()]
+  }
+
+  return date.toLocaleDateString('zh-CN', {
+    month: 'long',
+    day: 'numeric'
+  })
+}
+
+const toggleHistoryDay = (date: string) => {
+  const index = expandedDays.value.indexOf(date)
+  if (index === -1) {
+    expandedDays.value.push(date)
+  } else {
+    expandedDays.value.splice(index, 1)
+  }
+}
+
 // 监听搜索输入
 watch(foodSearchQuery, (newValue) => {
   if (newValue && newValue !== selectedFood.value?.name) {
@@ -852,9 +1014,38 @@ onMounted(async () => {
   .nutrition-stat {
     margin-bottom: 1rem;
   }
-  
+
   .stat-value {
     font-size: 1.25rem;
   }
+}
+
+/* 历史记录折叠面板样式 */
+.accordion-button {
+  background-color: #f8f9fa;
+  padding: 1rem;
+}
+
+.accordion-button:not(.collapsed) {
+  background-color: #e8f5e9;
+  color: #28a745;
+}
+
+.accordion-button:focus {
+  box-shadow: none;
+  border-color: rgba(40, 167, 69, 0.25);
+}
+
+.accordion-button::after {
+  margin-left: 0;
+}
+
+.accordion-body {
+  padding: 1rem;
+  background-color: #fff;
+}
+
+.table-sm td, .table-sm th {
+  padding: 0.5rem;
 }
 </style>

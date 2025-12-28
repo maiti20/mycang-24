@@ -724,10 +724,12 @@ class EnhancedAPI(BaseHTTPRequestHandler):
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
 
-        # 本周起始日期
+        # 本周起始日期（周一）和结束日期（下周一）
         today = datetime.now()
         week_start = today - timedelta(days=today.weekday())
         week_start_str = week_start.strftime('%Y-%m-%d')
+        week_end = week_start + timedelta(days=7)
+        week_end_str = week_end.strftime('%Y-%m-%d')
 
         # 本周饮食统计 - 按用户过滤
         cursor.execute('''
@@ -735,21 +737,20 @@ class EnhancedAPI(BaseHTTPRequestHandler):
                    COUNT(DISTINCT DATE(dr.record_date)) as diet_days
             FROM diet_record dr
             JOIN food f ON dr.food_id = f.id
-            WHERE DATE(dr.record_date) >= ? AND dr.user_id = ?
-        ''', (week_start_str, user_id))
+            WHERE DATE(dr.record_date) >= ? AND DATE(dr.record_date) < ? AND dr.user_id = ?
+        ''', (week_start_str, week_end_str, user_id))
 
         diet_stats = cursor.fetchone()
 
-        # 本周运动统计 - 按用户过滤
+        # 本周运动统计 - 按用户过滤，使用明确的日期范围
         cursor.execute('''
             SELECT COUNT(*) as exercise_count,
                    COUNT(DISTINCT DATE(el.log_date)) as exercise_days,
                    COALESCE(SUM(el.duration_minutes), 0) as total_minutes,
-                   COALESCE(SUM(el.duration_minutes * e.calories_per_minute), 0) as calories_burned
+                   COALESCE(SUM(el.calories_burned), 0) as calories_burned
             FROM exercise_log el
-            JOIN exercise e ON el.exercise_id = e.id
-            WHERE DATE(el.log_date) >= ? AND el.user_id = ?
-        ''', (week_start_str, user_id))
+            WHERE DATE(el.log_date) >= ? AND DATE(el.log_date) < ? AND el.user_id = ?
+        ''', (week_start_str, week_end_str, user_id))
 
         exercise_stats = cursor.fetchone()
 
@@ -1237,39 +1238,40 @@ class EnhancedAPI(BaseHTTPRequestHandler):
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
 
-        # 构建查询条件 - 使用当前登录用户
-        where_conditions = ['user_id = ?']
+        # 构建查询条件 - 使用当前登录用户，添加表别名
+        where_conditions = ['el.user_id = ?']
         params = [user_id]
 
         if date_from:
             where_conditions.append('DATE(el.log_date) >= ?')
             params.append(date_from)
-        
+
         if date_to:
             where_conditions.append('DATE(el.log_date) <= ?')
             params.append(date_to)
-        
+
         where_clause = 'WHERE ' + ' AND '.join(where_conditions)
-        
+
         # 获取总数
         count_query = f'SELECT COUNT(*) FROM exercise_log el {where_clause}'
         cursor.execute(count_query, params)
         total_count = cursor.fetchone()[0]
-        
-        # 分页查询
+
+        # 分页查询 - 使用 LEFT JOIN 确保即使运动被删除也能显示记录
         offset = (page - 1) * limit
         query = f'''
             SELECT el.id, el.exercise_id, el.duration_minutes, el.intensity_level, el.log_date, el.notes, el.calories_burned,
-                   e.name, e.category, e.difficulty_level, e.calories_per_minute, e.muscle_groups
+                   COALESCE(e.name, '未知运动'), COALESCE(e.category, '未知'), COALESCE(e.difficulty_level, '中级'),
+                   COALESCE(e.calories_per_minute, 5), COALESCE(e.muscle_groups, '')
             FROM exercise_log el
-            JOIN exercise e ON el.exercise_id = e.id
+            LEFT JOIN exercise e ON el.exercise_id = e.id
             {where_clause}
             ORDER BY el.log_date DESC
             LIMIT ? OFFSET ?
         '''
         cursor.execute(query, params + [limit, offset])
         logs = cursor.fetchall()
-        
+
         conn.close()
         
         # 格式化结果

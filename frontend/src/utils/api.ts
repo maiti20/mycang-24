@@ -1,9 +1,23 @@
 import axios from 'axios'
 import type { LoginRequest, RegisterRequest, AuthResponse, ApiResponse, User } from '@/types/user'
 
+// API基础地址（支持环境变量配置，用于外网访问）
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api'
+
+// 获取上传文件的基础URL（用于头像等静态资源）
+export const getUploadBaseUrl = () => {
+  const apiUrl = import.meta.env.VITE_API_BASE_URL
+  if (apiUrl && apiUrl.startsWith('http')) {
+    // 外网环境：使用API地址的域名部分
+    return apiUrl.replace('/api', '')
+  }
+  // 本地开发环境：使用代理
+  return ''
+}
+
 // 创建axios实例
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: API_BASE_URL,
   timeout: 30000,  // 增加超时时间到30秒
   headers: {
     'Content-Type': 'application/json'

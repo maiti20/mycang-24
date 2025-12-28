@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>深度CSRF诊断</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; }
+        .result { margin: 10px 0; padding: 10px; background: #f5f5f5; white-space: pre-wrap; font-family: monospace; }
+        .error { background: #ffebee; color: #c62828; }
+        .success { background: #e8f5e8; color: #2e7d32; }
+        .info { background: #e3f2fd; color: #1565c0; }
+    </style>
+</head>
+<body>
+    <h1>深度CSRF诊断工具</h1>
+    
+    <div class="test-section">
+        <h3>环境信息检测</h3>
+        <button onclick="detectEnvironment()">检测环境信息</button>
+        <div id="env-info" class="result info"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>测试1: 基础fetch调用</h3>
+        <button onclick="testBasicFetch()">测试基础fetch</button>
+        <div id="basic-fetch-result" class="result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>测试2: 带凭据的fetch调用</h3>
+        <button onclick="testFetchWithCredentials()">测试带凭据fetch</button>
+        <div id="cred-fetch-result" class="result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>测试3: XMLHttpRequest调用</h3>
+        <button onclick="testXHR()">测试XMLHttpRequest</button>
+        <div id="xhr-result" class="result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>测试4: 模拟axios调用</h3>
+        <button onclick="testAxiosLike()">测试类似axios的调用</button>
+        <div id="axios-like-result" class="result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>测试5: 检查现有token</h3>
+        <button onclick="checkExistingTokens()">检查现有token</button>
+        <div id="token-check-result" class="result"></div>
+    </div>
+
+    <script>
+        function detectEnvironment() {
+            const resultDiv = document.getElementById('env-info');
+            const info = {
+                userAgent: navigator.userAgent,
+                origin: window.location.origin,
+                hostname: window.location.hostname,
+                port: window.location.port,
+                protocol: window.location.protocol,
+                cookie: document.cookie,
+                localStorage: {},
+                sessionStorage: {}
+            };
+            
+            // 收集localStorage信息
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                info.localStorage[key] = localStorage.getItem(key);
+            }
+            
+            // 收集sessionStorage信息
+            for (let i = 0; i < sessionStorage.length; i++) {
+                const key = sessionStorage.key(i);
+                info.sessionStorage[key] = sessionStorage.getItem(key);
+            }
+            
+            resultDiv.textContent = JSON.stringify(info, null, 2);
+        }
+
+        async function testBasicFetch() {
+            const resultDiv = document.getElementById('basic-fetch-result');
+            try {
+                const response = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        username: 'admin',
+                        password: 'admin123'
+                    })
+                });
+                
+                const data = await response.json();
+                resultDiv.className = `result ${response.ok ? 'success' : 'error'}`;
+                resultDiv.textContent = `状态: ${response.status}\n状态文本: ${response.statusText}\n响应头: ${JSON.stringify(Object.fromEntries(response.headers.entries()), null, 2)}\n响应数据: ${JSON.stringify(data, null, 2)}`;
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `错误: ${error.message}\n堆栈: ${error.stack}`;
+            }
+        }
+
+        async function testFetchWithCredentials() {
+            const resultDiv = document.getElementById('cred-fetch-result');
+            try {
+                const response = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: JSON.stringify({
+                        username: 'admin',
+                        password: 'admin123'
+                    })
+                });
+                
+                const data = await response.json();
+                resultDiv.className = `result ${response.ok ? 'success' : 'error'}`;
+                resultDiv.textContent = `状态: ${response.status}\n响应数据: ${JSON.stringify(data, null, 2)}`;
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `错误: ${error.message}`;
+            }
+        }
+
+        function testXHR() {
+            const resultDiv = document.getElementById('xhr-result');
+            const xhr = new XMLHttpRequest();
+            
+            xhr.open('POST', '/api/auth/login', true);
+            xhr.setRequestHeader('Content-Type', 'application/json');
+            xhr.withCredentials = true;
+            
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState === 4) {
+                    try {
+                        const data = JSON.parse(xhr.responseText);
+                        resultDiv.className = `result ${xhr.status === 200 ? 'success' : 'error'}`;
+                        resultDiv.textContent = `状态: ${xhr.status}\n状态文本: ${xhr.statusText}\n响应头: ${xhr.getAllResponseHeaders()}\n响应数据: ${JSON.stringify(data, null, 2)}`;
+                    } catch (error) {
+                        resultDiv.className = 'result error';
+                        resultDiv.textContent = `解析错误: ${error.message}\n原始响应: ${xhr.responseText}`;
+                    }
+                }
+            };
+            
+            xhr.onerror = function() {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `网络错误`;
+            };
+            
+            try {
+                xhr.send(JSON.stringify({
+                    username: 'admin',
+                    password: 'admin123'
+                }));
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `发送错误: ${error.message}`;
+            }
+        }
+
+        async function testAxiosLike() {
+            const resultDiv = document.getElementById('axios-like-result');
+            try {
+                // 模拟axios的行为
+                const config = {
+                    method: 'post',
+                    url: '/api/auth/login',
+                    data: {
+                        username: 'admin',
+                        password: 'admin123'
+                    },
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    transformRequest: [function(data, headers) {
+                        return JSON.stringify(data);
+                    }],
+                    transformResponse: [function(data) {
+                        return JSON.parse(data);
+                    }]
+                };
+                
+                // 添加Authorization header如果存在token
+                const token = localStorage.getItem('access_token');
+                if (token) {
+                    config.headers['Authorization'] = `Bearer ${token}`;
+                }
+                
+                const response = await fetch(config.url, {
+                    method: config.method,
+                    headers: config.headers,
+                    body: config.transformRequest[0](config.data)
+                });
+                
+                const rawData = await response.text();
+                let data;
+                try {
+                    data = config.transformResponse[0](rawData);
+                } catch (e) {
+                    data = rawData;
+                }
+                
+                resultDiv.className = `result ${response.ok ? 'success' : 'error'}`;
+                resultDiv.textContent = `状态: ${response.status}\n配置: ${JSON.stringify(config, null, 2)}\n响应数据: ${JSON.stringify(data, null, 2)}`;
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `错误: ${error.message}\n堆栈: ${error.stack}`;
+            }
+        }
+
+        function checkExistingTokens() {
+            const resultDiv = document.getElementById('token-check-result');
+            const tokens = {
+                accessToken: localStorage.getItem('access_token'),
+                refreshToken: localStorage.getItem('refresh_token'),
+                cookie: document.cookie
+            };
+            
+            resultDiv.className = 'result info';
+            resultDiv.textContent = `现有token信息:\n${JSON.stringify(tokens, null, 2)}`;
+            
+            // 如果有token，尝试清除
+            if (tokens.accessToken || tokens.refreshToken) {
+                if (confirm('发现现有token，是否清除？')) {
+                    localStorage.removeItem('access_token');
+                    localStorage.removeItem('refresh_token');
+                    resultDiv.textContent += '\n\n已清除现有token，请重新测试登录功能。';
+                }
+            }
+        }
+
+        // 页面加载时自动检测环境
+        window.onload = function() {
+            detectEnvironment();
+        };
+    </script>
+</body>
+</html>

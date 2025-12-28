@@ -200,7 +200,7 @@ const emit = defineEmits<{
 
 // 表单数据
 const formData = reactive({
-  exercise_id: props.exercise?.id || '',
+  exercise_id: props.exercise?.id || '' as number | '',
   duration_minutes: 30,
   intensity_level: '中等强度',
   exercise_date: new Date().toISOString().split('T')[0],
@@ -245,7 +245,7 @@ watch(() => props.exercise, (newExercise) => {
 // 方法
 const loadExercises = async () => {
   try {
-    const response = await exerciseApi.getExercises({ limit: '100' })
+    const response = await exerciseApi.getExercises({ limit: 100 })
     if (response.success) {
       availableExercises.value = response.data.exercises
     }
@@ -300,14 +300,11 @@ const handleSubmit = async () => {
     validateForm()
     
     const submitData = {
-      exercise_id: formData.exercise_id,
+      exercise_id: Number(formData.exercise_id),
       duration_minutes: formData.duration_minutes,
       intensity_level: formData.intensity_level,
-      exercise_date: formData.exercise_date,
-      exercise_time: formData.exercise_time || null,
-      notes: formData.notes || null,
-      avg_heart_rate: formData.avg_heart_rate || null,
-      max_heart_rate: formData.max_heart_rate || null
+      calories_burned: estimatedCalories.value,
+      notes: formData.notes || undefined
     }
     
     const response = await exerciseApi.createExerciseLog(submitData)

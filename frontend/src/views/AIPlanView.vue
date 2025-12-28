@@ -459,8 +459,8 @@ const fetchAIPlans = async () => {
   loading.value = true
   try {
     const response = await aiPlanApi.getPlans()
-    if (response.success || response.plans) {
-      aiPlans.value = response.plans || response.data?.plans || []
+    if (response.success && response.data) {
+      aiPlans.value = response.data.plans || []
     } else {
       aiPlans.value = []
     }

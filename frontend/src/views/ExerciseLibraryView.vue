@@ -233,37 +233,37 @@
               </div>
 
               <!-- 分页 -->
-              <nav aria-label="运动列表分页" class="mt-4">
+              <nav v-if="effectivePagination.pages > 1" aria-label="运动列表分页" class="mt-4">
                 <ul class="pagination justify-content-center">
-                  <li class="page-item" :class="{ disabled: pagination.page <= 1 }">
-                    <button 
-                      class="page-link" 
-                      @click="changePage(pagination.page - 1)"
-                      :disabled="pagination.page <= 1"
+                  <li class="page-item" :class="{ disabled: effectivePagination.page <= 1 }">
+                    <button
+                      class="page-link"
+                      @click="changePage(effectivePagination.page - 1)"
+                      :disabled="effectivePagination.page <= 1"
                     >
                       上一页
                     </button>
                   </li>
-                  
-                  <li 
-                    v-for="page in visiblePages" 
+
+                  <li
+                    v-for="page in visiblePages"
                     :key="page"
                     class="page-item"
-                    :class="{ active: page === pagination.page }"
+                    :class="{ active: page === effectivePagination.page }"
                   >
-                    <button 
-                      class="page-link" 
+                    <button
+                      class="page-link"
                       @click="changePage(page)"
                     >
                       {{ page }}
                     </button>
                   </li>
-                  
-                  <li class="page-item" :class="{ disabled: pagination.page >= pagination.pages }">
-                    <button 
-                      class="page-link" 
-                      @click="changePage(pagination.page + 1)"
-                      :disabled="pagination.page >= pagination.pages"
+
+                  <li class="page-item" :class="{ disabled: effectivePagination.page >= effectivePagination.pages }">
+                    <button
+                      class="page-link"
+                      @click="changePage(effectivePagination.page + 1)"
+                      :disabled="effectivePagination.page >= effectivePagination.pages"
                     >
                       下一页
                     </button>
@@ -279,13 +279,10 @@
                 {{ showOnlyMyExercises ? '您还没有记录过运动' : '没有找到相关运动' }}
               </h5>
               <p class="text-muted">
-                {{ showOnlyMyExercises ? '点击"全部运动"浏览运动库，添加您的第一个运动记录吧！' : '尝试调整搜索条件或查看全部运动' }}
+                {{ showOnlyMyExercises ? '您还没有记录过运动，去运动库添加您的第一个运动记录吧！' : '尝试调整搜索条件或查看全部运动' }}
               </p>
-              <div class="d-flex justify-content-center gap-2">
-                <button v-if="showOnlyMyExercises" class="btn btn-primary" @click="showOnlyMyExercises = false">
-                  <i class="bi bi-grid me-1"></i>浏览全部运动
-                </button>
-                <button v-else class="btn btn-outline-primary" @click="resetSearch">
+              <div v-if="!showOnlyMyExercises" class="d-flex justify-content-center gap-2">
+                <button class="btn btn-outline-primary" @click="resetSearch">
                   重置搜索
                 </button>
               </div>
@@ -308,13 +305,13 @@
       v-if="showDetailModal"
       :exercise="selectedExercise"
       @close="showDetailModal = false"
-      @add-record="quickAddExercise"
+      @addRecord="quickAddExercise"
     />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { exerciseApi, statsApi } from '@/utils/api'
 import QuickAddExerciseModal from '@/components/QuickAddExerciseModal.vue'
 import ExerciseDetailModal from '@/components/ExerciseDetailModal.vue'
@@ -366,24 +363,60 @@ const pagination = reactive({
   pages: 0
 })
 
+// 我的运动分页（每页6个）
+const myExercisesPage = ref(1)
+const myExercisesPerPage = 6
+
 // 模态框状态
 const showQuickAddModal = ref(false)
 const showDetailModal = ref(false)
 const selectedExerciseForQuickAdd = ref<Exercise | null>(null)
 const selectedExercise = ref<Exercise | null>(null)
 
-// 计算属性 - 根据模式过滤显示的运动
+// 过滤后的我的运动列表（全部）
+const filteredMyExercises = computed(() => {
+  return exercises.value.filter(e => myExerciseIds.value.has(e.id))
+})
+
+// 我的运动分页信息
+const myExercisesPagination = computed(() => {
+  const total = filteredMyExercises.value.length
+  const pages = Math.ceil(total / myExercisesPerPage)
+  return { total, pages }
+})
+
+// 计算属性 - 根据模式过滤并分页显示的运动
 const displayedExercises = computed(() => {
   if (showOnlyMyExercises.value) {
-    return exercises.value.filter(e => myExerciseIds.value.has(e.id))
+    const start = (myExercisesPage.value - 1) * myExercisesPerPage
+    const end = start + myExercisesPerPage
+    return filteredMyExercises.value.slice(start, end)
   }
   return exercises.value
 })
 
+// 当前有效的分页信息
+const effectivePagination = computed(() => {
+  if (showOnlyMyExercises.value) {
+    return {
+      page: myExercisesPage.value,
+      pages: myExercisesPagination.value.pages,
+      total: myExercisesPagination.value.total
+    }
+  }
+  return {
+    page: pagination.page,
+    pages: pagination.pages,
+    total: pagination.total
+  }
+})
+
 const visiblePages = computed(() => {
-  const current = pagination.page
-  const total = pagination.pages
+  const current = effectivePagination.value.page
+  const total = effectivePagination.value.pages
   const delta = 2
+
+  if (total <= 1) return []
 
   const range = []
   const rangeWithDots = []
@@ -402,11 +435,16 @@ const visiblePages = computed(() => {
 
   if (current + delta < total - 1) {
     rangeWithDots.push('...', total)
-  } else {
+  } else if (total > 1) {
     rangeWithDots.push(total)
   }
 
   return rangeWithDots.filter((page, index, arr) => arr.indexOf(page) === index)
+})
+
+// 监听模式切换，重置分页
+watch(showOnlyMyExercises, () => {
+  myExercisesPage.value = 1
 })
 
 // 方法
@@ -415,11 +453,11 @@ const loadExercises = async () => {
     loading.value = true
 
     const params = {
-      page: pagination.page.toString(),
-      limit: '100', // 获取更多以便过滤
+      page: pagination.page,
+      limit: 100, // 获取更多以便过滤
       ...(searchForm.search && { search: searchForm.search }),
       ...(searchForm.category && { category: searchForm.category }),
-      ...(searchForm.difficulty && { difficulty: searchForm.difficulty })
+      ...(searchForm.difficulty && { difficulty_level: searchForm.difficulty })
     }
 
     const response = await exerciseApi.getExercises(params)
@@ -495,10 +533,20 @@ const resetSearch = () => {
   loadExercises()
 }
 
-const changePage = (page: number) => {
-  if (page >= 1 && page <= pagination.pages) {
-    pagination.page = page
-    loadExercises()
+const changePage = (page: number | string) => {
+  if (typeof page === 'string') return // 忽略 '...'
+
+  if (showOnlyMyExercises.value) {
+    // 我的运动模式下的分页
+    if (page >= 1 && page <= myExercisesPagination.value.pages) {
+      myExercisesPage.value = page
+    }
+  } else {
+    // 全部运动模式下的分页
+    if (page >= 1 && page <= pagination.pages) {
+      pagination.page = page
+      loadExercises()
+    }
   }
 }
 
@@ -532,10 +580,6 @@ const onExerciseAdded = () => {
   loadWeekStats()
   loadStreakDays()
   loadMyExercises()
-}
-
-const toggleShowMode = () => {
-  showOnlyMyExercises.value = !showOnlyMyExercises.value
 }
 
 // 生命周期
