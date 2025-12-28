@@ -202,21 +202,41 @@
 
     <!-- 今日活动 -->
     <div class="container mb-5">
-      <h2 class="mb-4">今日活动</h2>
+      <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="mb-0">今日活动</h2>
+        <span v-if="todayActivities.length > 0" class="badge bg-secondary">
+          {{ todayActivities.length }} 条记录
+        </span>
+      </div>
       <div class="card border-0 shadow-sm">
         <div class="card-body">
           <div v-if="todayActivities.length === 0" class="text-center py-4 text-muted">
             <i class="bi bi-inbox fs-1 mb-3"></i>
             <p>今天还没有活动记录，开始记录您的饮食或运动吧！</p>
           </div>
-          <div v-else class="timeline">
-            <div v-for="(activity, index) in todayActivities" :key="index" class="timeline-item">
-              <div class="timeline-marker"></div>
-              <div class="timeline-content">
-                <h6>{{ activity.title }}</h6>
-                <p class="text-muted mb-1">{{ activity.description }}</p>
-                <small class="text-muted">{{ activity.time }}</small>
+          <div v-else>
+            <div class="timeline">
+              <div v-for="(activity, index) in displayedActivities" :key="index" class="timeline-item">
+                <div class="timeline-marker" :class="activity.type === 'exercise' ? 'marker-exercise' : 'marker-diet'"></div>
+                <div class="timeline-content" :class="activity.type === 'exercise' ? 'content-exercise' : 'content-diet'">
+                  <div class="d-flex align-items-center mb-1">
+                    <i :class="activity.type === 'exercise' ? 'bi bi-bicycle text-info' : 'bi bi-egg-fried text-warning'" class="me-2"></i>
+                    <h6 class="mb-0">{{ activity.title }}</h6>
+                  </div>
+                  <p class="text-muted mb-1">{{ activity.description }}</p>
+                  <small class="text-muted">{{ activity.time }}</small>
+                </div>
               </div>
+            </div>
+            <!-- 展开/收起按钮 -->
+            <div v-if="todayActivities.length > 3" class="text-center mt-3">
+              <button
+                class="btn btn-outline-primary btn-sm px-4"
+                @click="toggleActivitiesExpand"
+              >
+                <i :class="isActivitiesExpanded ? 'bi bi-chevron-up' : 'bi bi-chevron-down'" class="me-1"></i>
+                {{ isActivitiesExpanded ? '收起' : `展开全部 (${todayActivities.length - 3} 条更多)` }}
+              </button>
             </div>
           </div>
         </div>
@@ -318,6 +338,22 @@ const todayActivities = computed(() => {
     return activityDate === todayStr
   })
 })
+
+// 活动列表展开状态
+const isActivitiesExpanded = ref(false)
+
+// 显示的活动列表（根据展开状态决定显示数量）
+const displayedActivities = computed(() => {
+  if (isActivitiesExpanded.value) {
+    return todayActivities.value
+  }
+  return todayActivities.value.slice(0, 3)
+})
+
+// 切换活动列表展开/收起
+const toggleActivitiesExpand = () => {
+  isActivitiesExpanded.value = !isActivitiesExpanded.value
+}
 
 // 加载统计数据
 const loadStatsData = async () => {
@@ -422,6 +458,18 @@ onMounted(async () => {
 .timeline-item {
   position: relative;
   margin-bottom: 25px;
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .timeline-marker {
@@ -441,6 +489,26 @@ onMounted(async () => {
   padding: 15px;
   border-radius: 8px;
   border-left: 3px solid #667eea;
+}
+
+/* 运动类型活动样式 */
+.marker-exercise {
+  background-color: #0dcaf0 !important;
+  box-shadow: 0 0 0 2px #e0f7fa !important;
+}
+
+.content-exercise {
+  border-left-color: #0dcaf0 !important;
+}
+
+/* 饮食类型活动样式 */
+.marker-diet {
+  background-color: #ffc107 !important;
+  box-shadow: 0 0 0 2px #fff8e1 !important;
+}
+
+.content-diet {
+  border-left-color: #ffc107 !important;
 }
 
 .card {
@@ -490,5 +558,19 @@ onMounted(async () => {
   0% { transform: scale(1); box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
   50% { transform: scale(1.05); box-shadow: 0 6px 25px rgba(0,0,0,0.4); }
   100% { transform: scale(1); box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
+}
+
+/* 展开/收起按钮样式 */
+.btn-outline-primary.btn-sm {
+  transition: all 0.3s ease;
+}
+
+.btn-outline-primary.btn-sm:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.btn-outline-primary.btn-sm i {
+  transition: transform 0.3s ease;
 }
 </style>
